@@ -7,6 +7,33 @@ using namespace std;
 
 const int MAX_SYM = 256;
 
+map<string, int> encoding(string source) { //lzw
+
+    map<string, int> table;
+    int index = 0;
+    for (int i = 0; i < source.length(); i++) {
+        if (table.find((string)source.substr(i, 1)) == table.end()) {
+            table.insert(make_pair(source.substr(i, 1), index));
+            index++;
+            table.begin();
+        }
+        else {
+            for (int k = 1, start = i; k < source.length(); k++) {
+                string subs = source.substr(start, k);
+                if (table.find(subs) == table.end()) {
+                    table.insert(make_pair(subs, index));
+                    index++;
+                    i = start + k;
+                    table.begin();
+                    break;
+                }
+            }
+        }
+    }
+
+    return table;
+}
+
 class Huffman
 {
 public:
@@ -50,13 +77,11 @@ void BuildTable(Huffman* root, vector<bool>& code, map<char, vector<bool>>& tabl
         code.push_back(0);
         BuildTable(root->left, code, table);
     }
-
     if (root->right)
     {
         code.push_back(1);
         BuildTable(root->right, code, table);
     }
-
     if (root->symbol)
         table[root->symbol] = code;
     if (code.size())
@@ -66,56 +91,6 @@ void BuildTable(Huffman* root, vector<bool>& code, map<char, vector<bool>>& tabl
 bool SortHuf(const Huffman* a, const Huffman* b)
 {
     return a->count < b->count;
-}
-
-string Decode(string& str, map<vector<bool>, char>& table)
-{
-    string out = "";
-    vector<bool> code;
-    for (int i = 0; i < str.length(); i++)
-    {
-        code.push_back(str[i] == '0' ? false : true);
-        if (table[code])
-        {
-            out += table[code];
-            code.clear();
-        }
-    }
-    return out;
-}
-
-vector<int> encoding(string s1)
-{
-    unordered_map<string, int> table;
-    for (int i = 0; i <= 255; i++) {
-        string ch = "";
-        ch += char(i);
-        table[ch] = i;
-    }
-
-    string p = "", c = "";
-    p += s1[0];
-    int code = 256;
-    vector<int> output_code;
-    for (int i = 0; i < s1.length(); i++) {
-        if (i != s1.length() - 1)
-            c += s1[i + 1];
-        if (table.find(p + c) != table.end()) {
-            p = p + c;
-        }
-        else {
-            cout << p << "\t" << table[p] << "\t\t"
-                << p + c << "\t" << code << endl;
-            output_code.push_back(table[p]);
-            table[p + c] = code;
-            code++;
-            p = c;
-        }
-        c = "";
-    }
-    cout << p << "\t" << table[p] << endl;
-    output_code.push_back(table[p]);
-    return output_code;
 }
 
 string readFile(string path)
@@ -150,15 +125,15 @@ void writeFile(string path, string str)
 
 int main()
 {
-    string path_src = "source.txt";
+    string sourceFile = "source.txt";
 
-    string raw = readFile(path_src);
-    cout << "Source text: " << raw << endl;
+    string source = readFile(sourceFile);
+    cout << "Source text: " << source << endl;
     map<char, int> symbols;
     cout << "Huffman" << endl;
-    for (int i = 0; i < raw.length(); i++)
+    for (int i = 0; i < source.length(); i++)
     {
-        symbols[raw[i]]++;
+        symbols[source[i]]++;
     }
 
     list<Huffman*> trees;
@@ -199,15 +174,15 @@ int main()
         cout << endl;
     }
 
-    string out = "";
-    for (int i = 0; i < raw.length(); i++)
+    string firstResult = "";
+    for (int i = 0; i < source.length(); i++)
     {
-        for (int j = 0; j < table[raw[i]].size(); j++)
+        for (int j = 0; j < table[source[i]].size(); j++)
         {
-            out += table[raw[i]][j] + '0';
+            firstResult += table[source[i]][j] + '0';
         }
     }
-    string path1 = "huffman.txt";
+    string outPath1 = "huffman.txt";
 
     map<vector<bool>, char> ftable;
     for (auto i = table.begin(); i != table.end(); i++)
@@ -215,22 +190,23 @@ int main()
         ftable[i->second] = i->first;
     }
 
-    writeFile(path1, out);
+    writeFile(outPath1, firstResult);
 
     cout << "LZW" << endl;
     setlocale(LC_ALL, 0);
-    string s = readFile(path_src);
-    vector<int> output_code = encoding(s);
+    string s = readFile(sourceFile);
+    map<string, int> output_code = encoding(s);
 
-    cout << "Output Codes are: ";
+    cout << "LZW Dictionary: " << endl;
 
-    string out2 = "";
+    string secondResult = "";
 
-    for (int i = 0; i < output_code.size(); i++) {
-        cout << output_code[i] << " ";
-        out2 += to_string(output_code[i]);
+    for (auto it = output_code.begin(); it != output_code.end(); ++it) {
+        cout << it->first << " : " << it->second << endl;
+        secondResult += to_string(it->second) + " ";
     }
-    string path2 = "lzw.txt";
-    writeFile(path2, out2);
+
+    string outPath2 = "lzw.txt";
+    writeFile(outPath2, secondResult);
     cout << endl;
 }
